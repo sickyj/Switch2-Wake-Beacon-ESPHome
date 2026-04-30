@@ -1,0 +1,5 @@
+packages:
+  switch2_wake:
+    # Change this to point to the raw URL of your switch2_master.yaml
+    url: https://raw.githubusercontent.com/YourUsername/YourRepo/main/switch2_master.yaml
+    refresh: 0d
