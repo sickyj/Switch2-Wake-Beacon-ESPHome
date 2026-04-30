@@ -1,7 +1,7 @@
 # You must paste your RAW custom_mac.h GitHub URL right here!
 esphome:
   includes:
-    - https://raw.githubusercontent.com/sickyj/Switch2-Wake-Beacon-ESPHome/main/custom_mac.h
+    - custom_mac.h
   on_boot:
     priority: 250
     then:
