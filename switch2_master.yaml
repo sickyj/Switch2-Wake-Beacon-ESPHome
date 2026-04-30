@@ -1,0 +1,135 @@
+# You must paste your RAW custom_mac.h GitHub URL right here!
+esphome:
+  includes:
+    - https://raw.githubusercontent.com/YourUsername/YourRepo/main/custom_mac.h
+  on_boot:
+    priority: 250
+    then:
+      - lambda: |-
+          std::string mac_str = id(saved_joycon_mac);
+          ESP_LOGI("BOOT", "Loaded MAC from Flash Memory: '%s'", mac_str.c_str());
+          
+          if (mac_str.length() == 17) {
+            uint8_t custom_mac[6];
+            sscanf(mac_str.c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", 
+                   &custom_mac[0], &custom_mac[1], &custom_mac[2], 
+                   &custom_mac[3], &custom_mac[4], &custom_mac[5]);
+            
+            esp_err_t err = esp_iface_mac_addr_set(custom_mac, ESP_MAC_BT);
+            if (err == ESP_OK) {
+              ESP_LOGI("BOOT", "Hardware BT MAC successfully spoofed to Joy-Con MAC!");
+            } else {
+              ESP_LOGE("BOOT", "Hardware MAC spoofing failed with error: %d", err);
+            }
+          }
+
+esp32:
+  framework:
+    type: esp-idf
+
+# --- SWITCH 2 WAKE & CAPTURE LOGIC ---
+esp32_ble:
+
+globals:
+  - id: saved_nintendo_payload
+    type: std::string
+    restore_value: yes
+    initial_value: '""'
+  - id: saved_joycon_mac
+    type: std::string
+    restore_value: yes
+    initial_value: '""'
+
+esp32_ble_tracker:
+  scan_parameters:
+    interval: 320ms
+    window: 30ms
+    active: false
+  on_ble_advertise:
+    - then:
+        - lambda: |-
+            if (id(capture_mode).state) {
+              for (auto data : x.get_manufacturer_datas()) {
+                auto native_uuid = data.uuid.get_uuid();
+                if (native_uuid.len == 2 && native_uuid.uuid.uuid16 == 0x0553) {
+                  if (data.data.size() == 24) {
+                    std::string clean_hex = "";
+                    for(size_t i = 0; i < data.data.size(); i++) {
+                      char buf[3];
+                      sprintf(buf, "%02X", data.data[i]);
+                      clean_hex += buf;
+                    }
+                    
+                    id(saved_nintendo_payload) = clean_hex;
+                    id(saved_joycon_mac) = x.address_str(); 
+                    
+                    ESP_LOGI("BLE_CAPTURE", "SUCCESS! Payload Saved: %s", clean_hex.c_str());
+                    ESP_LOGI("BLE_CAPTURE", "SUCCESS! MAC Saved: %s", x.address_str().c_str());
+                    id(capture_mode).turn_off();
+                    
+                    ESP_LOGI("BLE_CAPTURE", "Rebooting to apply hardware MAC...");
+                    delay(500);
+                    esp_restart();
+                  }
+                }
+              }
+            }
+
+switch:
+  - platform: template
+    name: "Capture Mode"
+    id: capture_mode
+    icon: "mdi:bluetooth-audio"
+    optimistic: true
+
+text_sensor:
+  - platform: template
+    name: "Saved Nintendo Payload"
+    id: captured_payload
+    icon: "mdi:memory"
+    lambda: |-
+      return id(saved_nintendo_payload);
+    update_interval: 10s
+
+button:
+  - platform: template
+    name: "Wake Switch 2"
+    id: wake_switch
+    icon: "mdi:nintendo-switch"
+    on_press:
+      - lambda: |-
+          #include <esp_gap_ble_api.h>
+          std::string hex = id(saved_nintendo_payload);
+          std::string mac_str = id(saved_joycon_mac);
+          
+          if (hex.length() < 48 || mac_str.empty()) {
+            ESP_LOGE("BLE_WAKE", "Missing payload or MAC. Run Capture Mode first!");
+            return;
+          }
+
+          uint8_t raw_adv_data[31] = { 0x02, 0x01, 0x06, 0x1B, 0xFF, 0x53, 0x05 };
+          for(int i = 0; i < 24; i++) {
+            std::string byte_str = hex.substr(i * 2, 2);
+            raw_adv_data[7 + i] = (uint8_t) strtol(byte_str.c_str(), NULL, 16);
+          }
+          
+          raw_adv_data[16] = 0x81;
+          
+          esp_ble_adv_params_t adv_params = {
+              .adv_int_min = 0x0020,
+              .adv_int_max = 0x0040,
+              .adv_type = ADV_TYPE_NONCONN_IND,
+              .own_addr_type = BLE_ADDR_TYPE_PUBLIC, 
+              .peer_addr = {0,0,0,0,0,0},
+              .peer_addr_type = BLE_ADDR_TYPE_PUBLIC,
+              .channel_map = ADV_CHNL_ALL,
+              .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY,
+          };
+          
+          esp_ble_gap_config_adv_data_raw(raw_adv_data, sizeof(raw_adv_data));
+          esp_ble_gap_start_advertising(&adv_params);
+          ESP_LOGI("BLE_WAKE", "Broadcasting Switch 2 wake beacon (Exact Public MAC)!");
+      - delay: 1.5s
+      - lambda: |-
+          esp_ble_gap_stop_advertising();
+          ESP_LOGI("BLE_WAKE", "Wake beacon stopped.");
