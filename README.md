@@ -92,30 +92,32 @@ No wiring or extra components — just an ESP32 dev board powered over USB.
 
 ## 🚀 Install
 
-1. **Download [`custom_mac.h`](custom_mac.h) into your ESPHome config folder** (the same
-   directory as your device `.yaml`). This one‑line header makes `<esp_mac.h>` visible for
-   the boot‑time MAC spoof, and ESPHome resolves it against *your* config directory — so it
-   must live locally (see the note below).
+Everything is fetched from GitHub — **no local files to download.** Use
+[`esp-home.yaml`](esp-home.yaml) as a starting point, or add these two blocks to an existing
+**esp‑idf** ESP32 config. Copy [`secrets.yaml.example`](secrets.yaml.example) to
+`secrets.yaml` and fill in your Wi‑Fi details.
 
-2. Use [`esp-home.yaml`](esp-home.yaml) as a starting point, or add the package block to an
-   existing **esp‑idf** ESP32 config. Copy [`secrets.yaml.example`](secrets.yaml.example) to
-   `secrets.yaml` and fill in your Wi‑Fi details.
+```yaml
+# 1. The C++ MAC-spoof component (fetched from GitHub):
+external_components:
+  - source: github://sickyj/Switch2-Wake-Beacon-ESPHome@v2.0.0
 
-   ```yaml
-   packages:
-     switch2_wake:
-       url: https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome
-       files: [switch2_master.yaml]
-       ref: v1.0.0    # pin to a release, or use `main` for the latest
-       refresh: 1d
-   ```
+# 2. The wake/capture logic:
+packages:
+  switch2_wake:
+    url: https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome
+    files: [switch2_master.yaml]
+    ref: v2.0.0    # pin to a release, or use `main` for the latest
+    refresh: 1d
+```
 
-3. Install / flash the firmware to your ESP32 from ESPHome.
+Then install / flash the firmware to your ESP32 from ESPHome.
 
-> [!IMPORTANT]
-> `custom_mac.h` **must** sit in your local config directory. ESPHome resolves a package's
-> `includes:` against your config folder, not the remote repo, so it can't be pulled over
-> the `url:` — download it once alongside your config. (This is the only manual file.)
+> [!NOTE]
+> The `esp_mac.h` call that spoofs the Bluetooth MAC lives in a small ESPHome
+> [external component](components/switch2) (`components/switch2/`). Because
+> `external_components` supports a remote `github://` source, the C++ ships with the repo —
+> there's no header file to copy into your config folder.
 
 ### Tuning (optional)
 
@@ -162,10 +164,10 @@ result.
 | File | Purpose |
 |---|---|
 | [`switch2_master.yaml`](switch2_master.yaml) | The wake/capture package — import this into your config |
-| [`esp-home.yaml`](esp-home.yaml) | Example base config (board, Wi‑Fi, framework) showing how to import the package |
-| [`custom_mac.h`](custom_mac.h) | One‑line header that exposes `<esp_mac.h>`; download into your config folder |
+| [`components/switch2/`](components/switch2) | ESPHome external component: the C++ that spoofs the BT MAC (`esp_mac.h`) |
+| [`esp-home.yaml`](esp-home.yaml) | Example base config (board, Wi‑Fi, framework) showing how to wire it up |
 | [`secrets.yaml.example`](secrets.yaml.example) | Template for your Wi‑Fi credentials — copy to `secrets.yaml` |
-| [`tests/`](tests) · [`.github/workflows/build.yml`](.github/workflows/build.yml) | CI that compiles the package on every push |
+| [`tests/`](tests) · [`.github/workflows/build.yml`](.github/workflows/build.yml) | CI that compiles the project on every push |
 
 ## 🔧 Troubleshooting
 
@@ -174,7 +176,7 @@ result.
 | **Nothing captured** | Hold **Home** on the Joy‑Con while Capture Mode is on. Only a 24‑byte Nintendo packet (company ID `0x0553`) is saved. |
 | **Wake does nothing** | Check both the payload and MAC sensors are populated. If empty, run capture again. |
 | **Want to start over** | Press **Clear Saved Data** — it wipes storage and reboots to restore the real BT MAC. |
-| **Build fails on `ESP_MAC_BT` / "Could not find custom_mac.h"** | Download [`custom_mac.h`](custom_mac.h) into the **same folder as your device `.yaml`**. ESPHome resolves package `includes:` against your config directory, so it must be local. |
+| **Build fails on `switch2::spoof_bt_mac` / component not found** | Make sure the `external_components:` block is present (see [Install](#-install)). It supplies the C++ the package calls. |
 
 ## ❓ FAQ
 

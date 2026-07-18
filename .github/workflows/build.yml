@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
-    paths: ["**.yaml", "**.yml", "**.h", ".github/workflows/build.yml"]
+    paths: ["**.yaml", "**.yml", "**.h", "**.cpp", "**.py", ".github/workflows/build.yml"]
   pull_request:
-    paths: ["**.yaml", "**.yml", "**.h", ".github/workflows/build.yml"]
+    paths: ["**.yaml", "**.yml", "**.h", "**.cpp", "**.py", ".github/workflows/build.yml"]
   workflow_dispatch:
 
 jobs:
@@ -21,9 +21,8 @@ jobs:
       - name: Install ESPHome
         run: pip install esphome
 
-      - name: Stage header + dummy secrets
+      - name: Stage dummy secrets
         run: |
-          cp custom_mac.h tests/custom_mac.h
           printf 'wifi_ssid: "ci"\nwifi_password: "ci-pass-123"\n' > tests/secrets.yaml
 
       - name: Compile
