@@ -10,6 +10,10 @@ esphome:
   friendly_name: Switch Wake-Up
   min_version: 2024.11.0
 
+# Lets the ESPHome dashboard offer this project as a one-click "adopt".
+dashboard_import:
+  package_import_url: github://sickyj/Switch2-Wake-Beacon-ESPHome/esp-home.yaml@v2.1.0
+
 # esp-idf framework is REQUIRED (the Arduino BLE stack can't do the raw
 # advertising + hardware MAC spoofing this project needs).
 esp32:
@@ -37,7 +41,7 @@ captive_portal:
 # The switch2 C++ component (BT MAC spoof) is fetched straight from GitHub.
 # Pin @<ref> to a release tag for stability, or use @main for the latest.
 external_components:
-  - source: github://sickyj/Switch2-Wake-Beacon-ESPHome@v2.0.0
+  - source: github://sickyj/Switch2-Wake-Beacon-ESPHome@v2.1.0
 
 # Optional: override any package tunable here (your values win).
 # substitutions:
@@ -50,5 +54,5 @@ packages:
   switch2_wake:
     url: https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome
     files: [switch2_master.yaml]
-    ref: v2.0.0
+    ref: v2.1.0
     refresh: 1d

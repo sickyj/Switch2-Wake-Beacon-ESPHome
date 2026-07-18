@@ -11,8 +11,17 @@ substitutions:
   wake_flag_byte: "0x81"    # byte 16: the wake-trigger flag
   wake_bursts: "3"          # number of advertisement bursts sent per wake
   capture_timeout: "60s"    # auto-disable Capture Mode after this long
+  # Advanced mode: when "true", the rarely-needed / destructive controls
+  # (Clear Saved Data, Reboot, raw payload/MAC sensors) are hidden in Home
+  # Assistant until you enable them per-entity. Set to "false" to show them all.
+  hide_advanced: "true"
 
 esphome:
+  # Identifies the shared project in Home Assistant (and drives update
+  # notifications when paired with dashboard_import). Bump on each release.
+  project:
+    name: "sickyj.switch2_wake_beacon"
+    version: "2.1.0"
   on_boot:
     priority: 250
     then:
@@ -85,6 +94,7 @@ switch:
     name: "Capture Mode"
     id: capture_mode
     icon: "mdi:bluetooth-audio"
+    entity_category: config    # setup control - grouped under Configuration
     optimistic: true
     # Safety net: auto-disable after ${capture_timeout} if no Joy-Con is seen,
     # so the device doesn't sit scanning forever.
@@ -105,6 +115,8 @@ text_sensor:
     name: "Saved Nintendo Payload"
     id: captured_payload
     icon: "mdi:memory"
+    entity_category: diagnostic       # advanced: raw captured data
+    disabled_by_default: ${hide_advanced}
     lambda: |-
       return id(saved_nintendo_payload);
     update_interval: 10s
@@ -113,15 +125,18 @@ text_sensor:
     name: "Saved Joy-Con MAC"
     id: captured_mac
     icon: "mdi:identifier"
+    entity_category: diagnostic       # advanced: raw captured data
+    disabled_by_default: ${hide_advanced}
     lambda: |-
       return id(saved_joycon_mac);
     update_interval: 10s
 
-  # Human-readable status of the last action, surfaced in Home Assistant.
+  # Human-readable status of the last action - kept visible as useful feedback.
   - platform: template
     name: "Wake Status"
     id: wake_status
     icon: "mdi:information-outline"
+    entity_category: diagnostic
     update_interval: never
 
 button:
@@ -190,6 +205,8 @@ button:
     name: "Clear Saved Data"
     id: clear_data
     icon: "mdi:delete"
+    entity_category: config           # advanced + destructive
+    disabled_by_default: ${hide_advanced}
     on_press:
       - lambda: |-
           id(saved_nintendo_payload) = "";
@@ -204,3 +221,5 @@ button:
   - platform: restart
     name: "Reboot Device"
     icon: "mdi:restart"
+    entity_category: config           # advanced
+    disabled_by_default: ${hide_advanced}

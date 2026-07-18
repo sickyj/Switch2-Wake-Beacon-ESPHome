@@ -113,6 +113,12 @@ packages:
 
 Then install / flash the firmware to your ESP32 from ESPHome.
 
+> [!TIP]
+> **One‑click adopt:** because the project ships a `dashboard_import`, you can also add it
+> straight from the **ESPHome dashboard** — “New device → adopt”, or open
+> `github://sickyj/Switch2-Wake-Beacon-ESPHome/esp-home.yaml@v2.1.0`. Home Assistant will
+> even flag new versions when the project version bumps.
+
 > [!NOTE]
 > The `esp_mac.h` call that spoofs the Bluetooth MAC lives in a small ESPHome
 > [external component](components/switch2) (`components/switch2/`). Because
@@ -128,6 +134,7 @@ Override any of these in your base config's `substitutions:` block — your valu
 | `wake_flag_byte` | `0x81` | Byte 16, the wake‑trigger flag |
 | `wake_bursts` | `3` | Number of advertisement bursts sent per wake |
 | `capture_timeout` | `60s` | Auto‑disable Capture Mode after this long |
+| `hide_advanced` | `true` | Hide the advanced/destructive controls by default (see below) |
 
 ## 🎮 How to use
 
@@ -149,15 +156,22 @@ result.
 
 ### Home Assistant entities
 
-| Entity | Type | What it does |
-|---|---|---|
-| **Capture Mode** | switch | Listen for your Joy‑Con and learn its identity (auto‑off after 60 s) |
-| **Wake Switch 2** | button | Broadcast the wake beacon (3 short bursts) |
-| **Clear Saved Data** | button | Wipe the saved payload/MAC and reboot to restore the real BT MAC |
-| **Reboot Device** | button | Restart the ESP32 |
-| **Saved Nintendo Payload** | sensor | The captured 24‑byte payload (hex) |
-| **Saved Joy‑Con MAC** | sensor | The captured Joy‑Con MAC |
-| **Wake Status** | sensor | Human‑readable status of the last action |
+| Entity | Type | Shown? | What it does |
+|---|---|---|---|
+| **Wake Switch 2** | button | always | Broadcast the wake beacon (3 short bursts) |
+| **Capture Mode** | switch | always | Listen for your Joy‑Con and learn its identity (auto‑off after 60 s) |
+| **Wake Status** | sensor | always | Human‑readable status of the last action |
+| **Clear Saved Data** | button | 🔒 advanced | Wipe the saved payload/MAC and reboot to restore the real BT MAC |
+| **Reboot Device** | button | 🔒 advanced | Restart the ESP32 |
+| **Saved Nintendo Payload** | sensor | 🔒 advanced | The captured 24‑byte payload (hex) |
+| **Saved Joy‑Con MAC** | sensor | 🔒 advanced | The captured Joy‑Con MAC |
+
+> [!TIP]
+> **Advanced mode.** The 🔒 entities are the destructive / rarely‑needed ones, so they're
+> **hidden by default** — a normal user only sees *Wake Switch 2* (plus *Capture Mode* for
+> setup). To use one, enable it on the device page in Home Assistant
+> (**Settings → Devices → your device → +N entities not shown**). To reveal them all at
+> build time instead, set `hide_advanced: "false"` in your `substitutions:`.
 
 ## 📂 Repository layout
 
