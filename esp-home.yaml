@@ -1,5 +1,41 @@
+# =============================================================================
+#  Example base config for the Switch 2 Wake Beacon.
+#  Copy the relevant parts into your own ESPHome device config.
+#  The wake/capture logic lives in the imported package at the bottom.
+# =============================================================================
+
+esphome:
+  name: switch-wake-up
+  friendly_name: Switch Wake-Up
+  min_version: 2024.11.0
+
+# esp-idf framework is REQUIRED (the Arduino BLE stack can't do the raw
+# advertising + hardware MAC spoofing this project needs).
+esp32:
+  board: firebeetle32   # change to your board
+  variant: esp32
+  framework:
+    type: esp-idf
+
+# Standard integrations
+logger:
+api:
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Fallback hotspot so the device stays recoverable if Wi-Fi drops.
+  ap:
+    ssid: "Switch Wake Fallback"
+    password: "switchwake"   # 8+ chars; change this
+
+captive_portal:
+
+# Import the Switch 2 Wake Beacon logic straight from this GitHub repo.
 packages:
   switch2_wake:
-    # Change this to point to the raw URL of your switch2_master.yaml
-    url: https://raw.githubusercontent.com/YourUsername/YourRepo/main/switch2_master.yaml
-    refresh: 0d
+    url: https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome
+    files: [switch2_master.yaml]
+    refresh: 1d

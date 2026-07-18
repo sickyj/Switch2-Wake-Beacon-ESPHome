@@ -1,5 +1,15 @@
-# You must paste your RAW custom_mac.h GitHub URL right here!
+# =============================================================================
+#  Switch 2 Wake Beacon - ESPHome package
+#  Import this into your base config via the `packages:` block (see esp-home.yaml).
+#  Your base config must supply: wifi/api/ota/logger, esp32 board, and the
+#  esp-idf framework. This package only adds the wake/capture logic.
+# =============================================================================
 esphome:
+  # Pulls <esp_mac.h> in at global scope so esp_iface_mac_addr_set() and
+  # ESP_MAC_BT are visible in the on_boot lambda. custom_mac.h ships next to
+  # this file and is fetched automatically when imported as a git package
+  # (see esp-home.yaml). esp_gap_ble_api.h is already included globally by the
+  # esp32_ble component, so the wake lambda needs nothing extra.
   includes:
     - custom_mac.h
   on_boot:
@@ -8,19 +18,28 @@ esphome:
       - lambda: |-
           std::string mac_str = id(saved_joycon_mac);
           ESP_LOGI("BOOT", "Loaded MAC from Flash Memory: '%s'", mac_str.c_str());
-          
+
+          // Only spoof if we captured a valid MAC. If it's empty (e.g. after
+          // "Clear Saved Data" + reboot) we keep the real hardware MAC.
           if (mac_str.length() == 17) {
             uint8_t custom_mac[6];
-            sscanf(mac_str.c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", 
-                   &custom_mac[0], &custom_mac[1], &custom_mac[2], 
+            int parsed = sscanf(mac_str.c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+                   &custom_mac[0], &custom_mac[1], &custom_mac[2],
                    &custom_mac[3], &custom_mac[4], &custom_mac[5]);
-            
+
+            if (parsed != 6) {
+              ESP_LOGE("BOOT", "Saved MAC failed to parse (%d/6) - skipping spoof.", parsed);
+              return;
+            }
+
             esp_err_t err = esp_iface_mac_addr_set(custom_mac, ESP_MAC_BT);
             if (err == ESP_OK) {
               ESP_LOGI("BOOT", "Hardware BT MAC successfully spoofed to Joy-Con MAC!");
             } else {
               ESP_LOGE("BOOT", "Hardware MAC spoofing failed with error: %d", err);
             }
+          } else {
+            ESP_LOGI("BOOT", "No saved MAC - running with the real hardware MAC.");
           }
 
 esp32:
@@ -51,6 +70,7 @@ esp32_ble_tracker:
             if (id(capture_mode).state) {
               for (auto data : x.get_manufacturer_datas()) {
                 auto native_uuid = data.uuid.get_uuid();
+                // 0x0553 is Nintendo's BLE Company ID.
                 if (native_uuid.len == 2 && native_uuid.uuid.uuid16 == 0x0553) {
                   if (data.data.size() == 24) {
                     std::string clean_hex = "";
@@ -59,14 +79,17 @@ esp32_ble_tracker:
                       sprintf(buf, "%02X", data.data[i]);
                       clean_hex += buf;
                     }
-                    
+
                     id(saved_nintendo_payload) = clean_hex;
-                    id(saved_joycon_mac) = x.address_str(); 
-                    
+                    id(saved_joycon_mac) = x.address_str();
+
                     ESP_LOGI("BLE_CAPTURE", "SUCCESS! Payload Saved: %s", clean_hex.c_str());
                     ESP_LOGI("BLE_CAPTURE", "SUCCESS! MAC Saved: %s", x.address_str().c_str());
+
+                    id(wake_status).publish_state("Captured Joy-Con - rebooting to apply MAC");
                     id(capture_mode).turn_off();
-                    
+
+                    // Reboot so on_boot applies the new MAC to the radio.
                     ESP_LOGI("BLE_CAPTURE", "Rebooting to apply hardware MAC...");
                     delay(500);
                     esp_restart();
@@ -81,6 +104,19 @@ switch:
     id: capture_mode
     icon: "mdi:bluetooth-audio"
     optimistic: true
+    # Safety net: auto-disable after 60s if no Joy-Con is seen, so the device
+    # doesn't sit scanning forever.
+    on_turn_on:
+      - lambda: 'id(wake_status).publish_state("Capture Mode ON - waiting for Joy-Con...");'
+      - delay: 60s
+      - if:
+          condition:
+            switch.is_on: capture_mode
+          then:
+            - switch.turn_off: capture_mode
+            - lambda: |-
+                ESP_LOGW("BLE_CAPTURE", "Capture timed out - no Joy-Con found.");
+                id(wake_status).publish_state("Capture timed out - no Joy-Con found");
 
 text_sensor:
   - platform: template
@@ -91,6 +127,21 @@ text_sensor:
       return id(saved_nintendo_payload);
     update_interval: 10s
 
+  - platform: template
+    name: "Saved Joy-Con MAC"
+    id: captured_mac
+    icon: "mdi:identifier"
+    lambda: |-
+      return id(saved_joycon_mac);
+    update_interval: 10s
+
+  # Human-readable status of the last action, surfaced in Home Assistant.
+  - platform: template
+    name: "Wake Status"
+    id: wake_status
+    icon: "mdi:information-outline"
+    update_interval: never
+
 button:
   - platform: template
     name: "Wake Switch 2"
@@ -98,38 +149,76 @@ button:
     icon: "mdi:nintendo-switch"
     on_press:
       - lambda: |-
-          #include <esp_gap_ble_api.h>
           std::string hex = id(saved_nintendo_payload);
           std::string mac_str = id(saved_joycon_mac);
-          
           if (hex.length() < 48 || mac_str.empty()) {
             ESP_LOGE("BLE_WAKE", "Missing payload or MAC. Run Capture Mode first!");
+            id(wake_status).publish_state("Cannot wake - no saved data");
             return;
           }
+          id(wake_status).publish_state("Broadcasting wake beacon...");
 
-          uint8_t raw_adv_data[31] = { 0x02, 0x01, 0x06, 0x1B, 0xFF, 0x53, 0x05 };
-          for(int i = 0; i < 24; i++) {
-            std::string byte_str = hex.substr(i * 2, 2);
-            raw_adv_data[7 + i] = (uint8_t) strtol(byte_str.c_str(), NULL, 16);
-          }
-          
-          raw_adv_data[16] = 0x81;
-          
-          esp_ble_adv_params_t adv_params = {
-              .adv_int_min = 0x0020,
-              .adv_int_max = 0x0040,
-              .adv_type = ADV_TYPE_NONCONN_IND,
-              .own_addr_type = BLE_ADDR_TYPE_PUBLIC, 
-              .peer_addr = {0,0,0,0,0,0},
-              .peer_addr_type = BLE_ADDR_TYPE_PUBLIC,
-              .channel_map = ADV_CHNL_ALL,
-              .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY,
-          };
-          
-          esp_ble_gap_config_adv_data_raw(raw_adv_data, sizeof(raw_adv_data));
-          esp_ble_gap_start_advertising(&adv_params);
-          ESP_LOGI("BLE_WAKE", "Broadcasting Switch 2 wake beacon (Exact Public MAC)!");
-      - delay: 1.5s
+      # Send 3 short bursts. A single advertise already re-broadcasts every
+      # ~30ms, but spaced bursts better survive a missed window on the console.
+      - repeat:
+          count: 3
+          then:
+            - lambda: |-
+                std::string hex = id(saved_nintendo_payload);
+                if (hex.length() < 48) return;
+
+                // Build the exact 31-byte advertisement.
+                uint8_t raw_adv_data[31] = {
+                  0x02, 0x01, 0x06,   // Flags
+                  0x1B, 0xFF,         // Length + Manufacturer Specific type
+                  0x53, 0x05          // Company ID 0x0553 (little-endian)
+                };
+                for(int i = 0; i < 24; i++) {
+                  std::string byte_str = hex.substr(i * 2, 2);
+                  raw_adv_data[7 + i] = (uint8_t) strtol(byte_str.c_str(), NULL, 16);
+                }
+
+                // Critical wake-trigger flag.
+                raw_adv_data[16] = 0x81;
+
+                esp_ble_adv_params_t adv_params = {
+                    .adv_int_min = 0x0020,
+                    .adv_int_max = 0x0040,
+                    .adv_type = ADV_TYPE_NONCONN_IND,
+                    // PUBLIC: the radio already wears the Joy-Con MAC.
+                    .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
+                    .peer_addr = {0,0,0,0,0,0},
+                    .peer_addr_type = BLE_ADDR_TYPE_PUBLIC,
+                    .channel_map = ADV_CHNL_ALL,
+                    .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY,
+                };
+
+                esp_ble_gap_config_adv_data_raw(raw_adv_data, sizeof(raw_adv_data));
+                esp_ble_gap_start_advertising(&adv_params);
+                ESP_LOGI("BLE_WAKE", "Broadcasting Switch 2 wake beacon (Exact Public MAC)!");
+            - delay: 700ms
+            - lambda: 'esp_ble_gap_stop_advertising();'
+            - delay: 150ms
+
       - lambda: |-
-          esp_ble_gap_stop_advertising();
-          ESP_LOGI("BLE_WAKE", "Wake beacon stopped.");
+          ESP_LOGI("BLE_WAKE", "Wake beacon finished.");
+          id(wake_status).publish_state("Wake beacon sent");
+
+  - platform: template
+    name: "Clear Saved Data"
+    id: clear_data
+    icon: "mdi:delete"
+    on_press:
+      - lambda: |-
+          id(saved_nintendo_payload) = "";
+          id(saved_joycon_mac) = "";
+          id(wake_status).publish_state("Data cleared - rebooting to restore real MAC");
+          ESP_LOGI("CLEAR", "Cleared. Rebooting to drop the spoofed MAC...");
+      # Reboot so on_boot skips spoofing and the real hardware MAC returns.
+      - delay: 500ms
+      - lambda: 'esp_restart();'
+
+  # Boot-time MAC spoofing makes a reboot button genuinely useful.
+  - platform: restart
+    name: "Reboot Device"
+    icon: "mdi:restart"
