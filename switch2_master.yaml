@@ -11,9 +11,13 @@ substitutions:
   wake_flag_byte: "0x81"    # byte 16: the wake-trigger flag
   wake_bursts: "3"          # number of advertisement bursts sent per wake
   capture_timeout: "60s"    # auto-disable Capture Mode after this long
+  # Auto-capture: when "true", the device starts capturing by itself on boot
+  # whenever no Joy-Con is saved yet - so first-time setup needs no manual
+  # toggle. Set to "false" to require the Capture Mode switch every time.
+  auto_capture: "true"
   # Advanced mode: when "true", the rarely-needed / destructive controls
-  # (Clear Saved Data, Reboot, raw payload/MAC sensors) are hidden in Home
-  # Assistant until you enable them per-entity. Set to "false" to show them all.
+  # (Capture Mode, Clear Saved Data, Reboot, raw payload/MAC sensors) are hidden
+  # in Home Assistant until you enable them per-entity. Set "false" to show all.
   hide_advanced: "true"
 
 esphome:
@@ -21,13 +25,24 @@ esphome:
   # notifications when paired with dashboard_import). Bump on each release.
   project:
     name: "sickyj.switch2_wake_beacon"
-    version: "2.1.0"
+    version: "2.2.0"
   on_boot:
-    priority: 250
-    then:
-      # The BT MAC spoof lives in the switch2 external component (its .cpp
-      # includes <esp_mac.h> at file scope), so no local header is needed.
-      - lambda: 'esphome::switch2::spoof_bt_mac(id(saved_joycon_mac));'
+    # Early: apply the saved MAC to the radio (before the BT stack comes up).
+    - priority: 250
+      then:
+        # The BT MAC spoof lives in the switch2 external component (its .cpp
+        # includes <esp_mac.h> at file scope), so no local header is needed.
+        - lambda: 'esphome::switch2::spoof_bt_mac(id(saved_joycon_mac));'
+    # Late: if nothing is saved yet, start capturing automatically so first-time
+    # setup is hands-off. Once a Joy-Con is saved this never runs again.
+    - priority: -100
+      then:
+        - if:
+            condition:
+              lambda: 'return ${auto_capture} && id(saved_joycon_mac).empty();'
+            then:
+              - logger.log: "No saved Joy-Con - starting automatic capture."
+              - switch.turn_on: capture_mode
 
 esp32:
   framework:
@@ -94,7 +109,8 @@ switch:
     name: "Capture Mode"
     id: capture_mode
     icon: "mdi:bluetooth-audio"
-    entity_category: config    # setup control - grouped under Configuration
+    entity_category: config           # only needed to re-capture (auto on first boot)
+    disabled_by_default: ${hide_advanced}
     optimistic: true
     # Safety net: auto-disable after ${capture_timeout} if no Joy-Con is seen,
     # so the device doesn't sit scanning forever.
