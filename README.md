@@ -52,8 +52,8 @@ the **Nintendo manufacturer payload** inside it. So the ESP32 works in two phase
 
 ```mermaid
 flowchart TD
-    subgraph Capture["🔎 Capture (once)"]
-        A[Turn on Capture Mode] --> B[Scan BLE adverts]
+    subgraph Capture["🔎 Capture (automatic on first boot)"]
+        A[No Joy-Con saved yet] --> B[Scan BLE adverts]
         B --> C{Nintendo packet?<br/>company 0x0553, 24 bytes}
         C -- no --> B
         C -- yes --> D[Save MAC + payload to flash]
@@ -133,20 +133,21 @@ Override any of these in your base config's `substitutions:` block — your valu
 |---|---|---|
 | `wake_flag_byte` | `0x81` | Byte 16, the wake‑trigger flag |
 | `wake_bursts` | `3` | Number of advertisement bursts sent per wake |
-| `capture_timeout` | `60s` | Auto‑disable Capture Mode after this long |
+| `capture_timeout` | `60s` | How long a capture attempt scans before giving up |
+| `auto_capture` | `true` | Auto‑capture on first boot when nothing is saved (see below) |
 | `hide_advanced` | `true` | Hide the advanced/destructive controls by default (see below) |
 
 ## 🎮 How to use
 
-### Step 1 — Capture (do this once)
+### Step 1 — Capture (automatic)
 
-1. In Home Assistant, turn **ON** the **Capture Mode** switch.
-2. Wake your controller by pressing & holding **Home** on the Joy‑Con 2.
-3. The ESP32 grabs the BLE advertisement, saves the MAC + payload to flash, and **reboots**
-   to apply the hardware MAC spoof. Capture Mode switches itself off (and auto‑times out
-   after 60 s if nothing is found).
+The first time you power the device with no Joy‑Con saved, it **starts capturing on its own**.
+Just **press & hold Home on your Joy‑Con 2** within ~60 s. The ESP32 grabs the BLE
+advertisement, saves the MAC + payload, and **reboots** to apply the hardware MAC spoof —
+no buttons to press. (If it times out, it tries again on the next boot.)
 
-Confirm it worked via the **Saved Nintendo Payload** and **Saved Joy‑Con MAC** sensors.
+To capture again later (e.g. a different controller), enable the **Capture Mode** switch — it's
+in the advanced entities. Set `auto_capture: "false"` if you'd rather always do it manually.
 
 ### Step 2 — Wake the console
 
@@ -159,19 +160,19 @@ result.
 | Entity | Type | Shown? | What it does |
 |---|---|---|---|
 | **Wake Switch 2** | button | always | Broadcast the wake beacon (3 short bursts) |
-| **Capture Mode** | switch | always | Listen for your Joy‑Con and learn its identity (auto‑off after 60 s) |
 | **Wake Status** | sensor | always | Human‑readable status of the last action |
+| **Capture Mode** | switch | 🔒 advanced | Re‑capture a Joy‑Con (first capture is automatic) |
 | **Clear Saved Data** | button | 🔒 advanced | Wipe the saved payload/MAC and reboot to restore the real BT MAC |
 | **Reboot Device** | button | 🔒 advanced | Restart the ESP32 |
 | **Saved Nintendo Payload** | sensor | 🔒 advanced | The captured 24‑byte payload (hex) |
 | **Saved Joy‑Con MAC** | sensor | 🔒 advanced | The captured Joy‑Con MAC |
 
 > [!TIP]
-> **Advanced mode.** The 🔒 entities are the destructive / rarely‑needed ones, so they're
-> **hidden by default** — a normal user only sees *Wake Switch 2* (plus *Capture Mode* for
-> setup). To use one, enable it on the device page in Home Assistant
-> (**Settings → Devices → your device → +N entities not shown**). To reveal them all at
-> build time instead, set `hide_advanced: "false"` in your `substitutions:`.
+> **Advanced mode.** With auto‑capture, a normal user only ever sees *Wake Switch 2* and
+> *Wake Status*. The 🔒 entities (re‑capture, destructive, and raw‑data) are **hidden by
+> default** — enable one on the device page in Home Assistant
+> (**Settings → Devices → your device → +N entities not shown**), or set
+> `hide_advanced: "false"` to reveal them all at build time.
 
 ## 📂 Repository layout
 
@@ -187,7 +188,7 @@ result.
 
 | Symptom | Fix |
 |---|---|
-| **Nothing captured** | Hold **Home** on the Joy‑Con while Capture Mode is on. Only a 24‑byte Nintendo packet (company ID `0x0553`) is saved. |
+| **Nothing captured** | Hold **Home** on the Joy‑Con during the ~60 s capture window (automatic on first boot; or enable **Capture Mode**). Only a 24‑byte Nintendo packet (company ID `0x0553`) is saved. Power‑cycle to retry. |
 | **Wake does nothing** | Check both the payload and MAC sensors are populated. If empty, run capture again. |
 | **Want to start over** | Press **Clear Saved Data** — it wipes storage and reboots to restore the real BT MAC. |
 | **Build fails on `switch2::spoof_bt_mac` / component not found** | Make sure the `external_components:` block is present (see [Install](#-install)). It supplies the C++ the package calls. |
