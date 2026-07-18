@@ -160,6 +160,7 @@ result.
 | Entity | Type | Shown? | What it does |
 |---|---|---|---|
 | **Wake Switch 2** | button | always | Broadcast the wake beacon (3 short bursts) |
+| **Ready** | binary_sensor | always | On once a Joy‑Con is captured (the device can wake) |
 | **Wake Status** | sensor | always | Human‑readable status of the last action |
 | **Capture Mode** | switch | 🔒 advanced | Re‑capture a Joy‑Con (first capture is automatic) |
 | **Clear Saved Data** | button | 🔒 advanced | Wipe the saved payload/MAC and reboot to restore the real BT MAC |
@@ -182,7 +183,8 @@ result.
 | [`components/switch2/`](components/switch2) | ESPHome external component: the C++ that spoofs the BT MAC (`esp_mac.h`) |
 | [`esp-home.yaml`](esp-home.yaml) | Example base config (board, Wi‑Fi, framework) showing how to wire it up |
 | [`secrets.yaml.example`](secrets.yaml.example) | Template for your Wi‑Fi credentials — copy to `secrets.yaml` |
-| [`tests/`](tests) · [`.github/workflows/build.yml`](.github/workflows/build.yml) | CI that compiles the project on every push |
+| [`CHANGELOG.md`](CHANGELOG.md) | Version history |
+| [`tests/`](tests) · [`.github/workflows/build.yml`](.github/workflows/build.yml) | CI that compiles the project + validates the example config |
 
 ## 🔧 Troubleshooting
 

@@ -24,6 +24,16 @@ jobs:
       - name: Stage dummy secrets
         run: |
           printf 'wifi_ssid: "ci"\nwifi_password: "ci-pass-123"\n' > tests/secrets.yaml
+          printf 'wifi_ssid: "ci"\nwifi_password: "ci-pass-123"\n' > secrets.yaml
+
+      - name: Validate example base config (esp-home.yaml)
+        # Point the version refs at this branch so the example is validated
+        # against the current code (release tags don't exist yet at PR time).
+        env:
+          REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          sed -E "s#@v[0-9]+\.[0-9]+\.[0-9]+#@${REF}#g; s#ref: v[0-9]+\.[0-9]+\.[0-9]+#ref: ${REF}#g" esp-home.yaml > esp-home.ci.yaml
+          esphome config esp-home.ci.yaml
 
       - name: Compile
         run: esphome compile tests/test-build.yaml

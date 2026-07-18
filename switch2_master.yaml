@@ -25,7 +25,7 @@ esphome:
   # notifications when paired with dashboard_import). Bump on each release.
   project:
     name: "sickyj.switch2_wake_beacon"
-    version: "2.2.0"
+    version: "2.3.0"
   on_boot:
     # Early: apply the saved MAC to the radio (before the BT stack comes up).
     - priority: 250
@@ -103,6 +103,15 @@ esp32_ble_tracker:
                 }
               }
             }
+
+binary_sensor:
+  # ON once a Joy-Con is captured - i.e. the device can actually wake the console.
+  - platform: template
+    name: "Ready"
+    id: ready_status
+    icon: "mdi:check-circle-outline"
+    lambda: |-
+      return !id(saved_joycon_mac).empty();
 
 switch:
   - platform: template
