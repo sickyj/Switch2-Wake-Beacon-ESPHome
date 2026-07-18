@@ -12,7 +12,7 @@ power the console on.
 ![ESPHome](https://img.shields.io/badge/ESPHome-2024.11%2B-1f8dd6?logo=esphome&logoColor=white)
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-integrated-41bdf5?logo=homeassistant&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Build](https://img.shields.io/badge/esphome%20compile-passing-brightgreen)
+[![Build](https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome/actions/workflows/build.yml/badge.svg)](https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome/actions/workflows/build.yml)
 
 <br/>
 
@@ -29,6 +29,7 @@ This project is an ESPHome adaptation of that work — full credit for the hard 
 ## Contents
 
 - [How it works](#how-it-works)
+- [Hardware](#-hardware)
 - [Requirements](#-requirements)
 - [Install](#-install)
 - [How to use](#-how-to-use)
@@ -72,6 +73,14 @@ flowchart TD
 Because the ESP32 wears the Joy‑Con's MAC at the hardware level, it advertises from a
 **public** address and doesn't need to drop its Wi‑Fi/Home Assistant connection to do it.
 
+## 🔌 Hardware
+
+No wiring or extra components — just an ESP32 dev board powered over USB.
+
+- Any **ESP32** works (developed on a DFRobot FireBeetle ESP32; ESP32‑WROOM boards are fine).
+- Place it within Bluetooth range of the console; an external‑antenna board helps if it's far.
+- Boards with the newer ESP32‑C/S variants also work as long as they run the **esp‑idf** framework.
+
 ## ✅ Requirements
 
 | | |
@@ -83,24 +92,40 @@ Because the ESP32 wears the Joy‑Con's MAC at the hardware level, it advertises
 
 ## 🚀 Install
 
-1. Use [`esp-home.yaml`](esp-home.yaml) as a starting point for your device config, or add
-   the package block below to an existing **esp‑idf** ESP32 config:
+1. **Download [`custom_mac.h`](custom_mac.h) into your ESPHome config folder** (the same
+   directory as your device `.yaml`). This one‑line header makes `<esp_mac.h>` visible for
+   the boot‑time MAC spoof, and ESPHome resolves it against *your* config directory — so it
+   must live locally (see the note below).
+
+2. Use [`esp-home.yaml`](esp-home.yaml) as a starting point, or add the package block to an
+   existing **esp‑idf** ESP32 config. Copy [`secrets.yaml.example`](secrets.yaml.example) to
+   `secrets.yaml` and fill in your Wi‑Fi details.
 
    ```yaml
    packages:
      switch2_wake:
        url: https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome
        files: [switch2_master.yaml]
+       ref: v1.0.0    # pin to a release, or use `main` for the latest
        refresh: 1d
    ```
 
-2. Install / flash the firmware to your ESP32 from ESPHome.
+3. Install / flash the firmware to your ESP32 from ESPHome.
 
-> [!NOTE]
-> Importing from the **repository** (`url:` + `files:`) means ESPHome fetches the sibling
-> `custom_mac.h` automatically — there's no header file to download or URL to paste by
-> hand. `custom_mac.h` only exists to make `<esp_mac.h>` visible for the boot‑time MAC
-> spoof.
+> [!IMPORTANT]
+> `custom_mac.h` **must** sit in your local config directory. ESPHome resolves a package's
+> `includes:` against your config folder, not the remote repo, so it can't be pulled over
+> the `url:` — download it once alongside your config. (This is the only manual file.)
+
+### Tuning (optional)
+
+Override any of these in your base config's `substitutions:` block — your values win:
+
+| Substitution | Default | Meaning |
+|---|---|---|
+| `wake_flag_byte` | `0x81` | Byte 16, the wake‑trigger flag |
+| `wake_bursts` | `3` | Number of advertisement bursts sent per wake |
+| `capture_timeout` | `60s` | Auto‑disable Capture Mode after this long |
 
 ## 🎮 How to use
 
@@ -138,7 +163,9 @@ result.
 |---|---|
 | [`switch2_master.yaml`](switch2_master.yaml) | The wake/capture package — import this into your config |
 | [`esp-home.yaml`](esp-home.yaml) | Example base config (board, Wi‑Fi, framework) showing how to import the package |
-| [`custom_mac.h`](custom_mac.h) | One‑line header that exposes `<esp_mac.h>` for the boot‑time MAC spoof |
+| [`custom_mac.h`](custom_mac.h) | One‑line header that exposes `<esp_mac.h>`; download into your config folder |
+| [`secrets.yaml.example`](secrets.yaml.example) | Template for your Wi‑Fi credentials — copy to `secrets.yaml` |
+| [`tests/`](tests) · [`.github/workflows/build.yml`](.github/workflows/build.yml) | CI that compiles the package on every push |
 
 ## 🔧 Troubleshooting
 
@@ -147,7 +174,7 @@ result.
 | **Nothing captured** | Hold **Home** on the Joy‑Con while Capture Mode is on. Only a 24‑byte Nintendo packet (company ID `0x0553`) is saved. |
 | **Wake does nothing** | Check both the payload and MAC sensors are populated. If empty, run capture again. |
 | **Want to start over** | Press **Clear Saved Data** — it wipes storage and reboots to restore the real BT MAC. |
-| **Build fails on `ESP_MAC_BT`** | Make sure `custom_mac.h` is present next to `switch2_master.yaml` (it is, when imported via the git package form above). |
+| **Build fails on `ESP_MAC_BT` / "Could not find custom_mac.h"** | Download [`custom_mac.h`](custom_mac.h) into the **same folder as your device `.yaml`**. ESPHome resolves package `includes:` against your config directory, so it must be local. |
 
 ## ❓ FAQ
 

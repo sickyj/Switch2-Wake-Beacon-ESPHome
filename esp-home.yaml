@@ -2,6 +2,10 @@
 #  Example base config for the Switch 2 Wake Beacon.
 #  Copy the relevant parts into your own ESPHome device config.
 #  The wake/capture logic lives in the imported package at the bottom.
+#
+#  ONE-TIME SETUP: download `custom_mac.h` from this repo into the SAME folder
+#  as this config. ESPHome resolves the package's `includes:` against YOUR config
+#  directory, so the header must live locally (it can't be fetched over the URL).
 # =============================================================================
 
 esphome:
@@ -33,9 +37,16 @@ wifi:
 
 captive_portal:
 
-# Import the Switch 2 Wake Beacon logic straight from this GitHub repo.
+# Optional: override any package tunable here (your values win).
+# substitutions:
+#   wake_bursts: "5"
+#   capture_timeout: "90s"
+
+# Import the Switch 2 Wake Beacon logic from this GitHub repo.
+# Pin `ref:` to a release tag for stability, or use `main` for the latest.
 packages:
   switch2_wake:
     url: https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome
     files: [switch2_master.yaml]
+    ref: v1.0.0
     refresh: 1d
