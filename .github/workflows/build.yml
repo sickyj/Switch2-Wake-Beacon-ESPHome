@@ -21,10 +21,8 @@ jobs:
       - name: Install ESPHome
         run: pip install esphome
 
-      - name: Stage header + dummy secrets
-        run: |
-          cp custom_mac.h tests/custom_mac.h
-          printf 'wifi_ssid: "ci"\nwifi_password: "ci-pass-123"\n' > tests/secrets.yaml
+      - name: Stage dummy secrets
+        run: printf 'wifi_ssid: "ci"\nwifi_password: "ci-pass-123"\n' > tests/secrets.yaml
 
       - name: Compile
         run: esphome compile tests/test-build.yaml

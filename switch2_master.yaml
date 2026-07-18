@@ -13,46 +13,20 @@ substitutions:
   capture_timeout: "60s"    # auto-disable Capture Mode after this long
 
 esphome:
-  # Pulls <esp_mac.h> in at global scope so esp_iface_mac_addr_set() and
-  # ESP_MAC_BT are visible in the on_boot lambda. custom_mac.h ships next to
-  # this file and is fetched automatically when imported as a git package
-  # (see esp-home.yaml). esp_gap_ble_api.h is already included globally by the
-  # esp32_ble component, so the wake lambda needs nothing extra.
-  includes:
-    - custom_mac.h
   on_boot:
     priority: 250
     then:
-      - lambda: |-
-          std::string mac_str = id(saved_joycon_mac);
-          ESP_LOGI("BOOT", "Loaded MAC from Flash Memory: '%s'", mac_str.c_str());
-
-          // Only spoof if we captured a valid MAC. If it's empty (e.g. after
-          // "Clear Saved Data" + reboot) we keep the real hardware MAC.
-          if (mac_str.length() == 17) {
-            uint8_t custom_mac[6];
-            int parsed = sscanf(mac_str.c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-                   &custom_mac[0], &custom_mac[1], &custom_mac[2],
-                   &custom_mac[3], &custom_mac[4], &custom_mac[5]);
-
-            if (parsed != 6) {
-              ESP_LOGE("BOOT", "Saved MAC failed to parse (%d/6) - skipping spoof.", parsed);
-              return;
-            }
-
-            esp_err_t err = esp_iface_mac_addr_set(custom_mac, ESP_MAC_BT);
-            if (err == ESP_OK) {
-              ESP_LOGI("BOOT", "Hardware BT MAC successfully spoofed to Joy-Con MAC!");
-            } else {
-              ESP_LOGE("BOOT", "Hardware MAC spoofing failed with error: %d", err);
-            }
-          } else {
-            ESP_LOGI("BOOT", "No saved MAC - running with the real hardware MAC.");
-          }
+      # The BT MAC spoof lives in the switch2 external component (its .cpp
+      # includes <esp_mac.h> at file scope), so no local header is needed.
+      - lambda: 'esphome::switch2::spoof_bt_mac(id(saved_joycon_mac));'
 
 esp32:
   framework:
     type: esp-idf
+
+# Loads the switch2 component (compiles switch2.cpp + exposes spoof_bt_mac()).
+# The component source is provided by external_components in your base config.
+switch2:
 
 # --- SWITCH 2 WAKE & CAPTURE LOGIC ---
 esp32_ble:
