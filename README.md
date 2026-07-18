@@ -8,8 +8,8 @@ waking the console instantly — without interrupting the ESP32's Wi-Fi connecti
 Home Assistant.
 
 > 🤖 The ESPHome YAML and C++ hardware-spoofing logic here were AI-generated
-> (Google Gemini) and are based on the BLE wake-protocol research by
-> [alexvnesta](https://github.com/alexvnesta).
+> (Google Gemini) and are based on the BLE wake-protocol research in
+> [alexvnesta/switch2controller](https://github.com/alexvnesta/switch2controller).
 
 ---
 
@@ -84,6 +84,6 @@ alter the ESP32.
 ## 🙏 Credits
 
 - **Reverse engineering** the Switch 2 BLE wake protocol and the 31-byte payload
-  structure: [alexvnesta](https://github.com/alexvnesta).
+  structure: [alexvnesta/switch2controller](https://github.com/alexvnesta/switch2controller).
 - **ESPHome adaptation** (YAML packaging + C++ lambda workarounds): generated with
   Google Gemini, refined afterwards.
