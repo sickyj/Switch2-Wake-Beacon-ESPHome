@@ -14,6 +14,14 @@ power the console on.
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Build](https://img.shields.io/badge/esphome%20compile-passing-brightgreen)
 
+<br/>
+
+### 🙏 Credit
+
+The Switch 2 BLE wake protocol and the 31‑byte payload were **reverse‑engineered by
+[alexvnesta/switch2controller](https://github.com/alexvnesta/switch2controller)**.
+This project is an ESPHome adaptation of that work — full credit for the hard part goes there.
+
 </div>
 
 ---
