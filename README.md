@@ -37,8 +37,9 @@ Home Assistant.
 
 2. Install / flash the firmware to your ESP32.
 
-There's no separate header file to download anymore — the required ESP-IDF headers are
-pulled in via build flags inside the package.
+Because this imports from the **repository** (not a single raw file), ESPHome fetches
+the sibling `custom_mac.h` automatically — no manual header download or URL-pasting
+needed. `custom_mac.h` just makes `<esp_mac.h>` visible for the boot-time MAC spoof.
 
 ## 🎮 How to use
 
