@@ -1,0 +1,23 @@
+# CI-only base config. Exists purely to compile-test switch2_master.yaml.
+# The workflow stages custom_mac.h and a dummy secrets.yaml next to this file.
+esphome:
+  name: ci-build
+  min_version: 2024.11.0
+
+esp32:
+  board: esp32dev
+  variant: esp32
+  framework:
+    type: esp-idf
+
+logger:
+api:
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+packages:
+  switch2_wake: !include ../switch2_master.yaml

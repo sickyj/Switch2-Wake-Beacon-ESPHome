@@ -4,6 +4,14 @@
 #  Your base config must supply: wifi/api/ota/logger, esp32 board, and the
 #  esp-idf framework. This package only adds the wake/capture logic.
 # =============================================================================
+
+# Tunables - override any of these in your own base config's `substitutions:`
+# block (your values win over these defaults).
+substitutions:
+  wake_flag_byte: "0x81"    # byte 16: the wake-trigger flag
+  wake_bursts: "3"          # number of advertisement bursts sent per wake
+  capture_timeout: "60s"    # auto-disable Capture Mode after this long
+
 esphome:
   # Pulls <esp_mac.h> in at global scope so esp_iface_mac_addr_set() and
   # ESP_MAC_BT are visible in the on_boot lambda. custom_mac.h ships next to
@@ -104,11 +112,11 @@ switch:
     id: capture_mode
     icon: "mdi:bluetooth-audio"
     optimistic: true
-    # Safety net: auto-disable after 60s if no Joy-Con is seen, so the device
-    # doesn't sit scanning forever.
+    # Safety net: auto-disable after ${capture_timeout} if no Joy-Con is seen,
+    # so the device doesn't sit scanning forever.
     on_turn_on:
       - lambda: 'id(wake_status).publish_state("Capture Mode ON - waiting for Joy-Con...");'
-      - delay: 60s
+      - delay: ${capture_timeout}
       - if:
           condition:
             switch.is_on: capture_mode
@@ -158,10 +166,10 @@ button:
           }
           id(wake_status).publish_state("Broadcasting wake beacon...");
 
-      # Send 3 short bursts. A single advertise already re-broadcasts every
-      # ~30ms, but spaced bursts better survive a missed window on the console.
+      # Send ${wake_bursts} short bursts. A single advertise already re-broadcasts
+      # every ~30ms, but spaced bursts better survive a missed window on the console.
       - repeat:
-          count: 3
+          count: ${wake_bursts}
           then:
             - lambda: |-
                 std::string hex = id(saved_nintendo_payload);
@@ -179,7 +187,7 @@ button:
                 }
 
                 // Critical wake-trigger flag.
-                raw_adv_data[16] = 0x81;
+                raw_adv_data[16] = ${wake_flag_byte};
 
                 esp_ble_adv_params_t adv_params = {
                     .adv_int_min = 0x0020,

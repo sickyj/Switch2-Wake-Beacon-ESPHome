@@ -1,0 +1,30 @@
+name: Build
+
+on:
+  push:
+    paths: ["**.yaml", "**.yml", "**.h", ".github/workflows/build.yml"]
+  pull_request:
+    paths: ["**.yaml", "**.yml", "**.h", ".github/workflows/build.yml"]
+  workflow_dispatch:
+
+jobs:
+  compile:
+    name: esphome compile (ESP-IDF)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ESPHome
+        run: pip install esphome
+
+      - name: Stage header + dummy secrets
+        run: |
+          cp custom_mac.h tests/custom_mac.h
+          printf 'wifi_ssid: "ci"\nwifi_password: "ci-pass-123"\n' > tests/secrets.yaml
+
+      - name: Compile
+        run: esphome compile tests/test-build.yaml

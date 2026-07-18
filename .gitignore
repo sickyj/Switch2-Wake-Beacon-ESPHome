@@ -6,6 +6,9 @@
 # Local secrets (never commit Wi-Fi credentials)
 secrets.yaml
 
+# CI-staged copy of the header (created by the build workflow)
+tests/custom_mac.h
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db
