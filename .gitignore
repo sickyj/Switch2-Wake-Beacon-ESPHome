@@ -1,0 +1,12 @@
+# ESPHome build output
+.esphome/
+*.bin
+*.elf
+
+# Local secrets (never commit Wi-Fi credentials)
+secrets.yaml
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
