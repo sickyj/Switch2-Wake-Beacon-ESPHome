@@ -11,6 +11,9 @@ substitutions:
   wake_flag_byte: "0x81"    # byte 16: the wake-trigger flag
   wake_bursts: "3"          # number of advertisement bursts sent per wake
   capture_timeout: "60s"    # auto-disable Capture Mode after this long
+  # BLE scan mode. "false" = passive (lower power). If capture never triggers,
+  # your Joy-Con may only expose its data in a scan response - try "true".
+  scan_active: "false"
   # Auto-capture: when "true", the device starts capturing by itself on boot
   # whenever no Joy-Con is saved yet - so first-time setup needs no manual
   # toggle. Set to "false" to require the Capture Mode switch every time.
@@ -25,14 +28,16 @@ esphome:
   # notifications when paired with dashboard_import). Bump on each release.
   project:
     name: "sickyj.switch2_wake_beacon"
-    version: "2.3.0"
+    version: "2.4.0"
   on_boot:
-    # Early: apply the saved MAC to the radio (before the BT stack comes up).
+    # Early: apply the saved MAC, and build the wake advert once so it isn't
+    # rebuilt on every wake / every burst. Both live in the switch2 external
+    # component (its .cpp includes <esp_mac.h>), so no local header is needed.
     - priority: 250
       then:
-        # The BT MAC spoof lives in the switch2 external component (its .cpp
-        # includes <esp_mac.h> at file scope), so no local header is needed.
-        - lambda: 'esphome::switch2::spoof_bt_mac(id(saved_joycon_mac));'
+        - lambda: |-
+            esphome::switch2::spoof_bt_mac(id(saved_joycon_mac));
+            esphome::switch2::prepare_wake_adv(id(saved_nintendo_payload), ${wake_flag_byte});
     # Late: if nothing is saved yet, start capturing automatically so first-time
     # setup is hands-off. Once a Joy-Con is saved this never runs again.
     - priority: -100
@@ -69,7 +74,7 @@ esp32_ble_tracker:
   scan_parameters:
     interval: 320ms
     window: 30ms
-    active: false
+    active: ${scan_active}
   on_ble_advertise:
     - then:
         - lambda: |-
@@ -105,13 +110,15 @@ esp32_ble_tracker:
             }
 
 binary_sensor:
-  # ON once a Joy-Con is captured - i.e. the device can actually wake the console.
+  # ON only when the device can actually wake: a Joy-Con is captured AND the
+  # boot-time MAC spoof succeeded. (If the spoof fails, this stays OFF.)
   - platform: template
     name: "Ready"
     id: ready_status
     icon: "mdi:check-circle-outline"
+    device_class: connectivity
     lambda: |-
-      return !id(saved_joycon_mac).empty();
+      return esphome::switch2::can_wake();
 
 switch:
   - platform: template
@@ -171,13 +178,14 @@ button:
     icon: "mdi:nintendo-switch"
     on_press:
       - lambda: |-
-          std::string hex = id(saved_nintendo_payload);
-          std::string mac_str = id(saved_joycon_mac);
-          if (hex.length() < 48 || mac_str.empty()) {
-            ESP_LOGE("BLE_WAKE", "Missing payload or MAC. Run Capture Mode first!");
-            id(wake_status).publish_state("Cannot wake - no saved data");
+          if (!esphome::switch2::can_wake()) {
+            ESP_LOGE("BLE_WAKE", "Not ready - capture a Joy-Con first (and the MAC spoof must have succeeded).");
+            id(wake_status).publish_state("Cannot wake - not ready");
             return;
           }
+          // Load the pre-built advert into the controller once (built at boot).
+          esphome::switch2::arm_wake();
+          ESP_LOGI("BLE_WAKE", "Broadcasting Switch 2 wake beacon (Exact Public MAC)!");
           id(wake_status).publish_state("Broadcasting wake beacon...");
 
       # Send ${wake_bursts} short bursts. A single advertise already re-broadcasts
@@ -185,41 +193,9 @@ button:
       - repeat:
           count: ${wake_bursts}
           then:
-            - lambda: |-
-                std::string hex = id(saved_nintendo_payload);
-                if (hex.length() < 48) return;
-
-                // Build the exact 31-byte advertisement.
-                uint8_t raw_adv_data[31] = {
-                  0x02, 0x01, 0x06,   // Flags
-                  0x1B, 0xFF,         // Length + Manufacturer Specific type
-                  0x53, 0x05          // Company ID 0x0553 (little-endian)
-                };
-                for(int i = 0; i < 24; i++) {
-                  std::string byte_str = hex.substr(i * 2, 2);
-                  raw_adv_data[7 + i] = (uint8_t) strtol(byte_str.c_str(), NULL, 16);
-                }
-
-                // Critical wake-trigger flag.
-                raw_adv_data[16] = ${wake_flag_byte};
-
-                esp_ble_adv_params_t adv_params = {
-                    .adv_int_min = 0x0020,
-                    .adv_int_max = 0x0040,
-                    .adv_type = ADV_TYPE_NONCONN_IND,
-                    // PUBLIC: the radio already wears the Joy-Con MAC.
-                    .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
-                    .peer_addr = {0,0,0,0,0,0},
-                    .peer_addr_type = BLE_ADDR_TYPE_PUBLIC,
-                    .channel_map = ADV_CHNL_ALL,
-                    .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY,
-                };
-
-                esp_ble_gap_config_adv_data_raw(raw_adv_data, sizeof(raw_adv_data));
-                esp_ble_gap_start_advertising(&adv_params);
-                ESP_LOGI("BLE_WAKE", "Broadcasting Switch 2 wake beacon (Exact Public MAC)!");
+            - lambda: 'esphome::switch2::start_wake();'
             - delay: 700ms
-            - lambda: 'esp_ble_gap_stop_advertising();'
+            - lambda: 'esphome::switch2::stop_wake();'
             - delay: 150ms
 
       - lambda: |-

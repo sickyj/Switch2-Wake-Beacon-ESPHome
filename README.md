@@ -92,38 +92,71 @@ No wiring or extra components — just an ESP32 dev board powered over USB.
 
 ## 🚀 Install
 
-Everything is fetched from GitHub — **no local files to download.** Use
-[`esp-home.yaml`](esp-home.yaml) as a starting point, or add these two blocks to an existing
-**esp‑idf** ESP32 config. Copy [`secrets.yaml.example`](secrets.yaml.example) to
-`secrets.yaml` and fill in your Wi‑Fi details.
+Everything is pulled from GitHub — **nothing to download, no header to copy.** The whole
+setup is: put your Wi‑Fi in `secrets.yaml`, paste a short config, and click **Install**.
+
+### 1. Wi‑Fi secret
+
+Copy [`secrets.yaml.example`](secrets.yaml.example) to `secrets.yaml` next to your config:
 
 ```yaml
-# 1. The C++ MAC-spoof component (fetched from GitHub):
-external_components:
-  - source: github://sickyj/Switch2-Wake-Beacon-ESPHome@v2.0.0
+wifi_ssid: "Your WiFi"
+wifi_password: "Your Password"
+```
 
-# 2. The wake/capture logic:
+### 2. The config
+
+**Simplest — one import (recommended).** In ESPHome, add a new device and use this as the
+*entire* config. The single `packages:` line pulls in everything else — the C++ component,
+the wake/capture logic, Wi‑Fi, API, OTA, and the esp‑idf framework:
+
+```yaml
+substitutions:
+  name: switch-wake-up
+esphome:
+  name: ${name}
+esp32:
+  board: esp32dev      # ← set your ESP32 board
+
+packages:
+  switch2_wake: github://sickyj/Switch2-Wake-Beacon-ESPHome/esp-home.yaml@v2.4.0
+```
+
+<details>
+<summary><b>Or: add to a config you already have</b></summary>
+
+Already running an **esp‑idf** ESP32 device? Add just these two blocks instead of importing
+the whole example:
+
+```yaml
+external_components:
+  - source: github://sickyj/Switch2-Wake-Beacon-ESPHome@v2.4.0
+
 packages:
   switch2_wake:
     url: https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome
     files: [switch2_master.yaml]
-    ref: v2.0.0    # pin to a release, or use `main` for the latest
+    ref: v2.4.0
     refresh: 1d
 ```
+</details>
 
-Then install / flash the firmware to your ESP32 from ESPHome.
+### 3. Install
+
+Click **Install** in ESPHome and flash it (USB the first time, OTA after). There's nothing
+else to configure — the device **captures automatically on first boot** (just hold **Home**
+on your Joy‑Con), then you wake with one button. See [How to use](#-how-to-use).
 
 > [!TIP]
-> **One‑click adopt:** because the project ships a `dashboard_import`, you can also add it
-> straight from the **ESPHome dashboard** — “New device → adopt”, or open
-> `github://sickyj/Switch2-Wake-Beacon-ESPHome/esp-home.yaml@v2.1.0`. Home Assistant will
-> even flag new versions when the project version bumps.
+> **Updates & pinning.** `@v2.4.0` pins to a release (stable); use `@main` for the latest.
+> The project also ships a `dashboard_import`, so the ESPHome dashboard can offer one‑click
+> **adopt** and flag new versions when the project version bumps.
 
 > [!NOTE]
-> The `esp_mac.h` call that spoofs the Bluetooth MAC lives in a small ESPHome
-> [external component](components/switch2) (`components/switch2/`). Because
-> `external_components` supports a remote `github://` source, the C++ ships with the repo —
-> there's no header file to copy into your config folder.
+> **Why esp‑idf, and where's the C++?** The Arduino BLE stack can't do the raw advertising +
+> hardware MAC spoof this needs, so esp‑idf is required. The `esp_mac.h` call lives in a tiny
+> [external component](components/switch2) — which is how the C++ ships over a `github://`
+> source with no local file.
 
 ### Tuning (optional)
 
@@ -134,6 +167,7 @@ Override any of these in your base config's `substitutions:` block — your valu
 | `wake_flag_byte` | `0x81` | Byte 16, the wake‑trigger flag |
 | `wake_bursts` | `3` | Number of advertisement bursts sent per wake |
 | `capture_timeout` | `60s` | How long a capture attempt scans before giving up |
+| `scan_active` | `false` | BLE scan mode; set `true` if capture never triggers (see Troubleshooting) |
 | `auto_capture` | `true` | Auto‑capture on first boot when nothing is saved (see below) |
 | `hide_advanced` | `true` | Hide the advanced/destructive controls by default (see below) |
 
@@ -160,7 +194,7 @@ result.
 | Entity | Type | Shown? | What it does |
 |---|---|---|---|
 | **Wake Switch 2** | button | always | Broadcast the wake beacon (3 short bursts) |
-| **Ready** | binary_sensor | always | On once a Joy‑Con is captured (the device can wake) |
+| **Ready** | binary_sensor | always | On when the device can wake — a Joy‑Con is captured *and* the MAC spoof succeeded |
 | **Wake Status** | sensor | always | Human‑readable status of the last action |
 | **Capture Mode** | switch | 🔒 advanced | Re‑capture a Joy‑Con (first capture is automatic) |
 | **Clear Saved Data** | button | 🔒 advanced | Wipe the saved payload/MAC and reboot to restore the real BT MAC |
@@ -190,7 +224,8 @@ result.
 
 | Symptom | Fix |
 |---|---|
-| **Nothing captured** | Hold **Home** on the Joy‑Con during the ~60 s capture window (automatic on first boot; or enable **Capture Mode**). Only a 24‑byte Nintendo packet (company ID `0x0553`) is saved. Power‑cycle to retry. |
+| **Nothing captured** | Hold **Home** on the Joy‑Con during the ~60 s capture window (automatic on first boot; or enable **Capture Mode**). Only a 24‑byte Nintendo packet (company ID `0x0553`) is saved. Power‑cycle to retry. If it still never fires, set `scan_active: "true"` (some controllers only expose their data in a scan response). |
+| **Ready stays off after capture** | The boot‑time MAC spoof failed — check the logs for a `switch2` error. **Ready** requires both a saved Joy‑Con *and* a successful spoof. |
 | **Wake does nothing** | Check both the payload and MAC sensors are populated. If empty, run capture again. |
 | **Want to start over** | Press **Clear Saved Data** — it wipes storage and reboots to restore the real BT MAC. |
 | **Build fails on `switch2::spoof_bt_mac` / component not found** | Make sure the `external_components:` block is present (see [Install](#-install)). It supplies the C++ the package calls. |
