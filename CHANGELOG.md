@@ -10,6 +10,8 @@ See the [GitHub releases](https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome/
 - New `scan_active` substitution (default `false`) + troubleshooting note for controllers
   that only expose data in a scan response.
 - CI: cancel superseded in-progress runs (`concurrency`).
+- Docs: simplified install — a single `packages:` import now pulls in the component, wake
+  logic, Wi‑Fi/API/OTA, and the framework.
 
 ## [2.3.0](https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome/releases/tag/v2.3.0)
 - Add a **Ready** binary sensor — on once a Joy-Con is captured (the device can wake).

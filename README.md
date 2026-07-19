@@ -92,38 +92,71 @@ No wiring or extra components — just an ESP32 dev board powered over USB.
 
 ## 🚀 Install
 
-Everything is fetched from GitHub — **no local files to download.** Use
-[`esp-home.yaml`](esp-home.yaml) as a starting point, or add these two blocks to an existing
-**esp‑idf** ESP32 config. Copy [`secrets.yaml.example`](secrets.yaml.example) to
-`secrets.yaml` and fill in your Wi‑Fi details.
+Everything is pulled from GitHub — **nothing to download, no header to copy.** The whole
+setup is: put your Wi‑Fi in `secrets.yaml`, paste a short config, and click **Install**.
+
+### 1. Wi‑Fi secret
+
+Copy [`secrets.yaml.example`](secrets.yaml.example) to `secrets.yaml` next to your config:
 
 ```yaml
-# 1. The C++ MAC-spoof component (fetched from GitHub):
-external_components:
-  - source: github://sickyj/Switch2-Wake-Beacon-ESPHome@v2.0.0
+wifi_ssid: "Your WiFi"
+wifi_password: "Your Password"
+```
 
-# 2. The wake/capture logic:
+### 2. The config
+
+**Simplest — one import (recommended).** In ESPHome, add a new device and use this as the
+*entire* config. The single `packages:` line pulls in everything else — the C++ component,
+the wake/capture logic, Wi‑Fi, API, OTA, and the esp‑idf framework:
+
+```yaml
+substitutions:
+  name: switch-wake-up
+esphome:
+  name: ${name}
+esp32:
+  board: esp32dev      # ← set your ESP32 board
+
+packages:
+  switch2_wake: github://sickyj/Switch2-Wake-Beacon-ESPHome/esp-home.yaml@v2.4.0
+```
+
+<details>
+<summary><b>Or: add to a config you already have</b></summary>
+
+Already running an **esp‑idf** ESP32 device? Add just these two blocks instead of importing
+the whole example:
+
+```yaml
+external_components:
+  - source: github://sickyj/Switch2-Wake-Beacon-ESPHome@v2.4.0
+
 packages:
   switch2_wake:
     url: https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome
     files: [switch2_master.yaml]
-    ref: v2.0.0    # pin to a release, or use `main` for the latest
+    ref: v2.4.0
     refresh: 1d
 ```
+</details>
 
-Then install / flash the firmware to your ESP32 from ESPHome.
+### 3. Install
+
+Click **Install** in ESPHome and flash it (USB the first time, OTA after). There's nothing
+else to configure — the device **captures automatically on first boot** (just hold **Home**
+on your Joy‑Con), then you wake with one button. See [How to use](#-how-to-use).
 
 > [!TIP]
-> **One‑click adopt:** because the project ships a `dashboard_import`, you can also add it
-> straight from the **ESPHome dashboard** — “New device → adopt”, or open
-> `github://sickyj/Switch2-Wake-Beacon-ESPHome/esp-home.yaml@v2.1.0`. Home Assistant will
-> even flag new versions when the project version bumps.
+> **Updates & pinning.** `@v2.4.0` pins to a release (stable); use `@main` for the latest.
+> The project also ships a `dashboard_import`, so the ESPHome dashboard can offer one‑click
+> **adopt** and flag new versions when the project version bumps.
 
 > [!NOTE]
-> The `esp_mac.h` call that spoofs the Bluetooth MAC lives in a small ESPHome
-> [external component](components/switch2) (`components/switch2/`). Because
-> `external_components` supports a remote `github://` source, the C++ ships with the repo —
-> there's no header file to copy into your config folder.
+> **Why esp‑idf, and where's the C++?** The Arduino BLE stack can't do the raw advertising +
+> hardware MAC spoof this needs, so esp‑idf is required. The `esp_mac.h` call lives in a tiny
+> [external component](components/switch2) — which is how the C++ ships over a `github://`
+> source with no local file.
 
 ### Tuning (optional)
 
