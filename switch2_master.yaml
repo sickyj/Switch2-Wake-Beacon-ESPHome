@@ -28,7 +28,7 @@ esphome:
   # notifications when paired with dashboard_import). Bump on each release.
   project:
     name: "sickyj.switch2_wake_beacon"
-    version: "2.4.0"
+    version: "2.5.0"
   on_boot:
     # Early: apply the saved MAC, and build the wake advert once so it isn't
     # rebuilt on every wake / every burst. Both live in the switch2 external

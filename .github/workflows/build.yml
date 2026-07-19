@@ -26,11 +26,6 @@ jobs:
       - name: Install ESPHome
         run: pip install esphome
 
-      - name: Stage dummy secrets
-        run: |
-          printf 'wifi_ssid: "ci"\nwifi_password: "ci-pass-123"\n' > tests/secrets.yaml
-          printf 'wifi_ssid: "ci"\nwifi_password: "ci-pass-123"\n' > secrets.yaml
-
       - name: Validate example base config (esp-home.yaml)
         # Point the version refs at this branch so the example is validated
         # against the current code (release tags don't exist yet at PR time).
