@@ -3,6 +3,12 @@
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 See the [GitHub releases](https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome/releases) for the full notes.
 
+## [2.5.0](https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome/releases/tag/v2.5.0)
+- **Docs compliance / no more `secrets.yaml`.** ESPHome forbids `!secret` in remote packages,
+  so the shared config no longer bakes in Wi‑Fi. The device now provisions Wi‑Fi at runtime
+  via **Improv** (USB) or its captive portal — the one‑line install needs no `secrets.yaml`.
+- Hard‑coding Wi‑Fi is still supported by adding your own `wifi:` block.
+
 ## [2.4.0](https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome/releases/tag/v2.4.0)
 - Build the wake advertisement **once at boot** instead of rebuilding it on every burst;
   the wake path is now just arm → start/stop.

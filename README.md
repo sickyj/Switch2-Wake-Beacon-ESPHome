@@ -92,23 +92,10 @@ No wiring or extra components — just an ESP32 dev board powered over USB.
 
 ## 🚀 Install
 
-Everything is pulled from GitHub — **nothing to download, no header to copy.** The whole
-setup is: put your Wi‑Fi in `secrets.yaml`, paste a short config, and click **Install**.
-
-### 1. Wi‑Fi secret
-
-Copy [`secrets.yaml.example`](secrets.yaml.example) to `secrets.yaml` next to your config:
-
-```yaml
-wifi_ssid: "Your WiFi"
-wifi_password: "Your Password"
-```
-
-### 2. The config
-
-**Simplest — one import (recommended).** In ESPHome, add a new device and use this as the
-*entire* config. The single `packages:` line pulls in everything else — the C++ component,
-the wake/capture logic, Wi‑Fi, API, OTA, and the esp‑idf framework:
+Everything is pulled from GitHub — **nothing to download, no `secrets.yaml`, no Wi‑Fi to
+type into YAML.** In ESPHome, add a new device and use this as the *entire* config (set your
+board). The single `packages:` line pulls in everything else — the C++ component, the
+wake/capture logic, API, OTA, and the esp‑idf framework:
 
 ```yaml
 substitutions:
@@ -119,36 +106,52 @@ esp32:
   board: esp32dev      # ← set your ESP32 board
 
 packages:
-  switch2_wake: github://sickyj/Switch2-Wake-Beacon-ESPHome/esp-home.yaml@v2.4.0
+  switch2_wake: github://sickyj/Switch2-Wake-Beacon-ESPHome/esp-home.yaml@v2.5.0
 ```
+
+Click **Install**, flash over USB, and **enter your Wi‑Fi when prompted** (ESPHome uses
+[Improv](https://www.improv-wifi.com/) over the USB connection). If you're not plugged in,
+the device makes a **“Switch Wake Fallback”** hotspot on first boot — join it and set Wi‑Fi
+in the captive‑portal page. No credentials live in any file.
+
+That's the whole install. From here it's hands‑off — the device **captures automatically on
+first boot** (hold **Home** on your Joy‑Con), then you wake with one button. See
+[How to use](#-how-to-use).
+
+<details>
+<summary><b>Prefer to hard‑code Wi‑Fi (headless, no provisioning step)?</b></summary>
+
+Add a normal `wifi:` block to *your* config — inline, or from your own `secrets.yaml`
+(`!secret` is fine in **your** config; it just can't live in the shared remote package):
+
+```yaml
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+```
+</details>
 
 <details>
 <summary><b>Or: add to a config you already have</b></summary>
 
-Already running an **esp‑idf** ESP32 device? Add just these two blocks instead of importing
-the whole example:
+Already running an **esp‑idf** ESP32 device (with your own Wi‑Fi)? Skip the example import and
+add just these two blocks:
 
 ```yaml
 external_components:
-  - source: github://sickyj/Switch2-Wake-Beacon-ESPHome@v2.4.0
+  - source: github://sickyj/Switch2-Wake-Beacon-ESPHome@v2.5.0
 
 packages:
   switch2_wake:
     url: https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome
     files: [switch2_master.yaml]
-    ref: v2.4.0
+    ref: v2.5.0
     refresh: 1d
 ```
 </details>
 
-### 3. Install
-
-Click **Install** in ESPHome and flash it (USB the first time, OTA after). There's nothing
-else to configure — the device **captures automatically on first boot** (just hold **Home**
-on your Joy‑Con), then you wake with one button. See [How to use](#-how-to-use).
-
 > [!TIP]
-> **Updates & pinning.** `@v2.4.0` pins to a release (stable); use `@main` for the latest.
+> **Updates & pinning.** `@v2.5.0` pins to a release (stable); use `@main` for the latest.
 > The project also ships a `dashboard_import`, so the ESPHome dashboard can offer one‑click
 > **adopt** and flag new versions when the project version bumps.
 
@@ -156,7 +159,8 @@ on your Joy‑Con), then you wake with one button. See [How to use](#-how-to-use
 > **Why esp‑idf, and where's the C++?** The Arduino BLE stack can't do the raw advertising +
 > hardware MAC spoof this needs, so esp‑idf is required. The `esp_mac.h` call lives in a tiny
 > [external component](components/switch2) — which is how the C++ ships over a `github://`
-> source with no local file.
+> source with no local file. And because ESPHome forbids `!secret` in remote packages, this
+> project provisions Wi‑Fi at runtime instead of baking it in.
 
 ### Tuning (optional)
 
@@ -216,7 +220,7 @@ result.
 | [`switch2_master.yaml`](switch2_master.yaml) | The wake/capture package — import this into your config |
 | [`components/switch2/`](components/switch2) | ESPHome external component: the C++ that spoofs the BT MAC (`esp_mac.h`) |
 | [`esp-home.yaml`](esp-home.yaml) | Example base config (board, Wi‑Fi, framework) showing how to wire it up |
-| [`secrets.yaml.example`](secrets.yaml.example) | Template for your Wi‑Fi credentials — copy to `secrets.yaml` |
+| [`secrets.yaml.example`](secrets.yaml.example) | *Optional* — only if you hard‑code Wi‑Fi via `!secret` instead of provisioning |
 | [`CHANGELOG.md`](CHANGELOG.md) | Version history |
 | [`tests/`](tests) · [`.github/workflows/build.yml`](.github/workflows/build.yml) | CI that compiles the project + validates the example config |
 

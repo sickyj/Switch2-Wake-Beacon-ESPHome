@@ -12,7 +12,7 @@ esphome:
 
 # Lets the ESPHome dashboard offer this project as a one-click "adopt".
 dashboard_import:
-  package_import_url: github://sickyj/Switch2-Wake-Beacon-ESPHome/esp-home.yaml@v2.4.0
+  package_import_url: github://sickyj/Switch2-Wake-Beacon-ESPHome/esp-home.yaml@v2.5.0
 
 # esp-idf framework is REQUIRED (the Arduino BLE stack can't do the raw
 # advertising + hardware MAC spoofing this project needs).
@@ -28,20 +28,26 @@ api:
 ota:
   - platform: esphome
 
+# No Wi-Fi credentials are baked in - ESPHome's rules say a shared/remote package
+# must not contain `!secret` lookups. Instead the device provisions Wi-Fi itself:
+#   * over USB when you Install (Improv), or
+#   * via its own "Switch Wake Fallback" hotspot + captive portal on first boot.
+# To hard-code Wi-Fi instead, add a normal `wifi:` block in YOUR config, e.g.:
+#   wifi:
+#     ssid: !secret wifi_ssid       # !secret is fine in your OWN config
+#     password: !secret wifi_password
 wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-  # Fallback hotspot so the device stays recoverable if Wi-Fi drops.
   ap:
     ssid: "Switch Wake Fallback"
     password: "switchwake"   # 8+ chars; change this
 
 captive_portal:
+improv_serial:
 
 # The switch2 C++ component (BT MAC spoof) is fetched straight from GitHub.
 # Pin @<ref> to a release tag for stability, or use @main for the latest.
 external_components:
-  - source: github://sickyj/Switch2-Wake-Beacon-ESPHome@v2.4.0
+  - source: github://sickyj/Switch2-Wake-Beacon-ESPHome@v2.5.0
 
 # Optional: override any package tunable here (your values win).
 # substitutions:
@@ -54,5 +60,5 @@ packages:
   switch2_wake:
     url: https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome
     files: [switch2_master.yaml]
-    ref: v2.4.0
+    ref: v2.5.0
     refresh: 1d
