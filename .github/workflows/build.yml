@@ -7,6 +7,11 @@ on:
     paths: ["**.yaml", "**.yml", "**.h", "**.cpp", "**.py", ".github/workflows/build.yml"]
   workflow_dispatch:
 
+# Cancel an in-progress run when a newer commit is pushed to the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   compile:
     name: esphome compile (ESP-IDF)

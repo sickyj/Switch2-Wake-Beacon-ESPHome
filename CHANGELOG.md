@@ -3,6 +3,14 @@
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 See the [GitHub releases](https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome/releases) for the full notes.
 
+## [2.4.0](https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome/releases/tag/v2.4.0)
+- Build the wake advertisement **once at boot** instead of rebuilding it on every burst;
+  the wake path is now just arm → start/stop.
+- **Ready** now reflects whether the MAC spoof actually succeeded, not just that a MAC is saved.
+- New `scan_active` substitution (default `false`) + troubleshooting note for controllers
+  that only expose data in a scan response.
+- CI: cancel superseded in-progress runs (`concurrency`).
+
 ## [2.3.0](https://github.com/sickyj/Switch2-Wake-Beacon-ESPHome/releases/tag/v2.3.0)
 - Add a **Ready** binary sensor — on once a Joy-Con is captured (the device can wake).
 - CI now also validates the example `esp-home.yaml` (remote import path), not just the local build.

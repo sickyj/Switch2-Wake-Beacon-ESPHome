@@ -6,6 +6,9 @@
 # Local secrets (never commit Wi-Fi credentials)
 secrets.yaml
 
+# CI-generated (esp-home.yaml with refs rewritten)
+esp-home.ci.yaml
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db

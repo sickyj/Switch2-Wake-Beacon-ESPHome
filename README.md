@@ -134,6 +134,7 @@ Override any of these in your base config's `substitutions:` block — your valu
 | `wake_flag_byte` | `0x81` | Byte 16, the wake‑trigger flag |
 | `wake_bursts` | `3` | Number of advertisement bursts sent per wake |
 | `capture_timeout` | `60s` | How long a capture attempt scans before giving up |
+| `scan_active` | `false` | BLE scan mode; set `true` if capture never triggers (see Troubleshooting) |
 | `auto_capture` | `true` | Auto‑capture on first boot when nothing is saved (see below) |
 | `hide_advanced` | `true` | Hide the advanced/destructive controls by default (see below) |
 
@@ -160,7 +161,7 @@ result.
 | Entity | Type | Shown? | What it does |
 |---|---|---|---|
 | **Wake Switch 2** | button | always | Broadcast the wake beacon (3 short bursts) |
-| **Ready** | binary_sensor | always | On once a Joy‑Con is captured (the device can wake) |
+| **Ready** | binary_sensor | always | On when the device can wake — a Joy‑Con is captured *and* the MAC spoof succeeded |
 | **Wake Status** | sensor | always | Human‑readable status of the last action |
 | **Capture Mode** | switch | 🔒 advanced | Re‑capture a Joy‑Con (first capture is automatic) |
 | **Clear Saved Data** | button | 🔒 advanced | Wipe the saved payload/MAC and reboot to restore the real BT MAC |
@@ -190,7 +191,8 @@ result.
 
 | Symptom | Fix |
 |---|---|
-| **Nothing captured** | Hold **Home** on the Joy‑Con during the ~60 s capture window (automatic on first boot; or enable **Capture Mode**). Only a 24‑byte Nintendo packet (company ID `0x0553`) is saved. Power‑cycle to retry. |
+| **Nothing captured** | Hold **Home** on the Joy‑Con during the ~60 s capture window (automatic on first boot; or enable **Capture Mode**). Only a 24‑byte Nintendo packet (company ID `0x0553`) is saved. Power‑cycle to retry. If it still never fires, set `scan_active: "true"` (some controllers only expose their data in a scan response). |
+| **Ready stays off after capture** | The boot‑time MAC spoof failed — check the logs for a `switch2` error. **Ready** requires both a saved Joy‑Con *and* a successful spoof. |
 | **Wake does nothing** | Check both the payload and MAC sensors are populated. If empty, run capture again. |
 | **Want to start over** | Press **Clear Saved Data** — it wipes storage and reboots to restore the real BT MAC. |
 | **Build fails on `switch2::spoof_bt_mac` / component not found** | Make sure the `external_components:` block is present (see [Install](#-install)). It supplies the C++ the package calls. |
