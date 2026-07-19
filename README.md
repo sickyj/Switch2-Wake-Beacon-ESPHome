@@ -92,10 +92,11 @@ No wiring or extra components — just an ESP32 dev board powered over USB.
 
 ## 🚀 Install
 
-Everything is pulled from GitHub — **nothing to download, no `secrets.yaml`, no Wi‑Fi to
-type into YAML.** In ESPHome, add a new device and use this as the *entire* config (set your
-board). The single `packages:` line pulls in everything else — the C++ component, the
-wake/capture logic, API, OTA, and the esp‑idf framework:
+Everything is pulled from GitHub — **nothing to download, no `secrets.yaml`, no Wi‑Fi in any
+config file.** You set Wi‑Fi *on the device* during setup (see **Set Wi‑Fi** below). In
+ESPHome, add a new device and use this as the *entire* config (just set your board). The
+single `packages:` line pulls in everything else — the C++ component, the wake/capture logic,
+API, OTA, and the esp‑idf framework:
 
 ```yaml
 substitutions:
@@ -109,10 +110,24 @@ packages:
   switch2_wake: github://sickyj/Switch2-Wake-Beacon-ESPHome/esp-home.yaml@v2.5.0
 ```
 
-Click **Install**, flash over USB, and **enter your Wi‑Fi when prompted** (ESPHome uses
-[Improv](https://www.improv-wifi.com/) over the USB connection). If you're not plugged in,
-the device makes a **“Switch Wake Fallback”** hotspot on first boot — join it and set Wi‑Fi
-in the captive‑portal page. No credentials live in any file.
+Click **Install** and flash it over USB.
+
+### Set Wi‑Fi (on the device)
+
+There's **no Wi‑Fi in any config file** — the device asks you for it once, and stores it only
+on itself. Pick whichever is handier:
+
+- **🔌 Over USB — Improv (easiest).** If you install from the ESPHome dashboard or the
+  [web installer](https://web.esphome.io/), it pops up a **“Configure Wi‑Fi”** prompt right
+  after flashing. Type your network name + password and you're done.
+  ([What is Improv?](https://www.improv-wifi.com/))
+- **📶 Over the air — captive portal.** Otherwise, on first boot the device broadcasts its own
+  Wi‑Fi network, **“Switch Wake Fallback”** (password `switchwake`). Connect a phone or laptop
+  to it and a setup page opens where you enter your Wi‑Fi. This hotspot also comes back
+  automatically whenever the device can't reach your network — so you can move it or switch
+  networks later without re‑flashing.
+
+Your Wi‑Fi password lives only on the device, never in a file or repo.
 
 That's the whole install. From here it's hands‑off — the device **captures automatically on
 first boot** (hold **Home** on your Joy‑Con), then you wake with one button. See
